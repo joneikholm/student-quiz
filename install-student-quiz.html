@@ -1,1 +1,827 @@
-<!doctype html><meta charset="utf-8"><title>Student Quiz Bookmarklet</title><body style="font-family:system-ui;max-width:560px;margin:60px auto;padding:0 16px;line-height:1.5"><h2>Install the Student Quiz</h2><ol><li>Show the bookmarks bar: <b>Cmd + Shift + B</b></li><li>Drag this button onto the bookmarks bar (replace the old one):</li></ol><p><a href="javascript:(()%20%3D%3E%20%7B%0A%20%20%20%20'use%20strict'%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Guard%3A%20if%20overlay%20already%20exists%2C%20just%20focus%20it%20and%20exit%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20QUIZ_OVERLAY_ID%20%3D%20'student-quiz-overlay'%3B%0A%20%20%20%20const%20EXISTING%20%3D%20document.getElementById(QUIZ_OVERLAY_ID)%3B%0A%20%20%20%20if%20(EXISTING)%20%7B%0A%20%20%20%20%20%20%20%20const%20input%20%3D%20EXISTING.querySelector('%23student-name-guess')%3B%0A%20%20%20%20%20%20%20%20if%20(input)%20%7B%20input.focus()%3B%20input.select()%3B%20%7D%0A%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Settings%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20NAME_COLUMNS%20%3D%205%3B%20%20%20%20%20%20%20%20%20%20%2F%2F%20columns%20in%20the%20name%20panel%0A%20%20%20%20const%20AUTO_NEXT_DELAY_MS%20%3D%20600%3B%20%20%2F%2F%20pause%20after%20a%20correct%20click%20before%20moving%20on%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Utilities%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20%24%24%20%3D%20(sel%2C%20root%20%3D%20document)%20%3D%3E%20Array.from(root.querySelectorAll(sel))%3B%0A%20%20%20%20const%20normalize%20%3D%20(s)%20%3D%3E%0A%20%20%20%20%20%20%20%20(s%20%3F%3F%20'').trim().toLowerCase().normalize('NFD').replace(%2F%5B%5Cu0300-%5Cu036f%5D%2Fg%2C%20'')%3B%0A%20%20%20%20const%20firstNameOf%20%3D%20(fullName)%20%3D%3E%20(fullName%20%3F%3F%20'').trim().split(%2F%5Cs%2B%2F)%5B0%5D%20%3F%3F%20''%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Algorithm%20State%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20%2F%2F%20Weights%20track%20how%20%22hard%22%20a%20student%20is.%20Higher%20%3D%20shows%20up%20more%20often.%0A%20%20%20%20let%20studentWeights%20%3D%20%7B%7D%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Extract%20students%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20function%20extractStudents(root)%20%7B%0A%20%20%20%20%20%20%20%20const%20idSpans%20%3D%20%24%24('%5Bid%5E%3D%22DisplayResult_SearchResultCtl_SearchDataList_lblLoginName_%22%5D'%2C%20root)%3B%0A%20%20%20%20%20%20%20%20const%20nameSpans%20%3D%20%24%24('%5Bid%5E%3D%22DisplayResult_SearchResultCtl_SearchDataList_lblObjectName_%22%5D'%2C%20root)%3B%0A%20%20%20%20%20%20%20%20return%20idSpans.map((span%2C%20i)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20name%20%3D%20nameSpans%5Bi%5D%3F.textContent%3F.trim()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20id%3A%20span%3F.textContent%3F.trim()%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20name%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20first%3A%20firstNameOf(name)%2C%20%20%20%2F%2F%20only%20the%20very%20first%20name%20is%20used%20in%20the%20UI%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20%7D).filter(s%20%3D%3E%20s.id%20%26%26%20s.name)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20let%20allStudents%20%3D%20extractStudents(document)%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Saved%20classes%20(remembered%20in%20this%20browser)%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20SEARCH_SEL%20%3D%20'%23FunctionMenu_searchcontrol_SearchText'%3B%0A%20%20%20%20const%20SEARCH_BTN_SEL%20%3D%20'%23FunctionMenu_searchcontrol_StartSearchOnSelect'%3B%0A%20%20%20%20const%20SEARCH_PLACEHOLDER%20%3D%20'Indtast%20s%C3%B8gekriterie'%3B%0A%20%20%20%20const%20CLASSES_KEY%20%3D%20'studentQuizClasses'%3B%0A%20%20%20%20const%20LAST_CLASS_KEY%20%3D%20'studentQuizLastClass'%3B%0A%20%20%20%20let%20savedClasses%20%3D%20%5B%5D%3B%0A%20%20%20%20try%20%7B%20savedClasses%20%3D%20JSON.parse(localStorage.getItem(CLASSES_KEY)%20%7C%7C%20'%5B%5D')%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%20%20%20%20const%20saveClasses%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20try%20%7B%20localStorage.setItem(CLASSES_KEY%2C%20JSON.stringify(savedClasses))%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%20%20%20%20%7D%3B%0A%20%20%20%20const%20rememberLastClass%20%3D%20(id)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20try%20%7B%20localStorage.setItem(LAST_CLASS_KEY%2C%20id)%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%20%20%20%20%7D%3B%0A%20%20%20%20let%20lastClass%20%3D%20null%3B%0A%20%20%20%20try%20%7B%20lastClass%20%3D%20localStorage.getItem(LAST_CLASS_KEY)%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%0A%20%20%20%20%2F%2F%20If%20the%20page%20already%20shows%20a%20class%2C%20remember%20its%20ID%20automatically%0A%20%20%20%20const%20pageClassId%20%3D%20(document.querySelector(SEARCH_SEL)%3F.value%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%2F%2F%20A%20search%20hit%20for%20the%20class%20itself%20is%20not%20a%20student%0A%20%20%20%20const%20lowerPageId%20%3D%20pageClassId.toLowerCase()%3B%0A%20%20%20%20allStudents%20%3D%20allStudents.filter((s)%20%3D%3E%20s.id.toLowerCase()%20!%3D%3D%20lowerPageId%20%26%26%20s.name.toLowerCase()%20!%3D%3D%20lowerPageId)%3B%0A%20%20%20%20let%20activeClass%20%3D%20null%3B%0A%20%20%20%20if%20(allStudents.length%20%26%26%20pageClassId%20%26%26%20pageClassId%20!%3D%3D%20SEARCH_PLACEHOLDER)%20%7B%0A%20%20%20%20%20%20%20%20activeClass%20%3D%20pageClassId%3B%0A%20%20%20%20%20%20%20%20if%20(!savedClasses.includes(pageClassId))%20%7B%20savedClasses.push(pageClassId)%3B%20saveClasses()%3B%20%7D%0A%20%20%20%20%20%20%20%20rememberLastClass(pageClassId)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Students%20removed%20from%20practice%20(remembered%20in%20this%20browser%20between%20sessions)%0A%20%20%20%20const%20REMOVED_KEY%20%3D%20'studentQuizRemovedIds'%3B%0A%20%20%20%20let%20removedIds%20%3D%20new%20Set()%3B%0A%20%20%20%20try%20%7B%20removedIds%20%3D%20new%20Set(JSON.parse(localStorage.getItem(REMOVED_KEY)%20%7C%7C%20'%5B%5D'))%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%20%20%20%20const%20saveRemoved%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20try%20%7B%20localStorage.setItem(REMOVED_KEY%2C%20JSON.stringify(%5B...removedIds%5D))%3B%20%7D%20catch%20(e)%20%7B%20%2F*%20ignore%20*%2F%20%7D%0A%20%20%20%20%7D%3B%0A%0A%20%20%20%20%2F%2F%20Active%20set%20%3D%20everyone%20not%20removed%20with%20the%20%C3%97%20button%0A%20%20%20%20let%20students%20%3D%20allStudents.filter(s%20%3D%3E%20!removedIds.has(s.id))%3B%0A%0A%20%20%20%20%2F%2F%20Students%20answered%20correctly%20this%20round%3A%20they%20leave%20the%20list%20until%20%22Restore%20Active%20Set%22%0A%20%20%20%20const%20learnedIds%20%3D%20new%20Set()%3B%0A%20%20%20%20const%20remainingStudents%20%3D%20()%20%3D%3E%20students.filter(s%20%3D%3E%20!learnedIds.has(s.id))%3B%0A%0A%20%20%20%20%2F%2F%20Phase%201%20Queue%3A%20A%20copy%20of%20all%20students%20to%20cycle%20through%20first%0A%20%20%20%20let%20unseenStudents%20%3D%20%5B...students%5D%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Weighted%20Logic%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20function%20getWeight(id)%20%7B%0A%20%20%20%20%20%20%20%20return%20studentWeights%5Bid%5D%20!%3D%3D%20undefined%20%3F%20studentWeights%5Bid%5D%20%3A%2020%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20adjustWeight(id%2C%20isCorrect)%20%7B%0A%20%20%20%20%20%20%20%20let%20w%20%3D%20getWeight(id)%3B%0A%20%20%20%20%20%20%20%20if%20(isCorrect)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20w%20%3D%20Math.max(1%2C%20w%20-%205)%3B%20%20%20%2F%2F%20Correct%3A%20shows%20less%20often%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20w%20%3D%20w%20%2B%2015%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Wrong%3A%20shows%20MORE%20often%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20studentWeights%5Bid%5D%20%3D%20w%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20pickWeightedStudent(availableStudents%2C%20currentId)%20%7B%0A%20%20%20%20%20%20%20%20let%20pool%20%3D%20availableStudents%3B%0A%20%20%20%20%20%20%20%20if%20(availableStudents.length%20%3E%201%20%26%26%20currentId)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20pool%20%3D%20availableStudents.filter(s%20%3D%3E%20s.id%20!%3D%3D%20currentId)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20const%20totalWeight%20%3D%20pool.reduce((sum%2C%20s)%20%3D%3E%20sum%20%2B%20getWeight(s.id)%2C%200)%3B%0A%20%20%20%20%20%20%20%20let%20randomPointer%20%3D%20Math.random()%20*%20totalWeight%3B%0A%20%20%20%20%20%20%20%20for%20(const%20student%20of%20pool)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20w%20%3D%20getWeight(student.id)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(randomPointer%20%3C%20w)%20return%20student%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20randomPointer%20-%3D%20w%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20return%20pool%5B0%5D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Hidden%20iframe%20(loader)%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20let%20loaderIframe%20%3D%20document.getElementById('infoPage')%3B%0A%20%20%20%20if%20(!loaderIframe)%20%7B%0A%20%20%20%20%20%20%20%20loaderIframe%20%3D%20document.createElement('iframe')%3B%0A%20%20%20%20%20%20%20%20loaderIframe.id%20%3D%20'infoPage'%3B%0A%20%20%20%20%20%20%20%20document.body.appendChild(loaderIframe)%3B%0A%20%20%20%20%7D%0A%20%20%20%20loaderIframe.setAttribute('aria-hidden'%2C%20'true')%3B%0A%20%20%20%20loaderIframe.style.display%20%3D%20'none'%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Styles%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20document.getElementById('student-quiz-style')%3F.remove()%3B%20%2F%2F%20replace%20styles%20from%20older%20versions%0A%20%20%20%20const%20styleEl%20%3D%20document.createElement('style')%3B%0A%20%20%20%20styleEl.id%20%3D%20'student-quiz-style'%3B%0A%20%20%20%20styleEl.textContent%20%3D%20%60%0A%20%20%20%20%20%20%23student-quiz-overlay%7Bposition%3Afixed%3Binset%3A0%3Bz-index%3A2147483647%3Bdisplay%3Aflex%3Boverflow%3Aauto%3Bpadding%3A16px%3Bbox-sizing%3Aborder-box%3Bbackground%3Argba(10%2C10%2C10%2C.75)%3Bfont-family%3Asystem-ui%2C-apple-system%2CSegoe%20UI%2CRoboto%2CHelvetica%2CArial%2Csans-serif%7D%0A%20%20%20%20%20%20%23student-quiz-overlay%20*%7Bbox-sizing%3Aborder-box%7D%0A%20%20%20%20%20%20%23student-quiz-layout%7Bmargin%3Aauto%3Bdisplay%3Aflex%3Bflex-wrap%3Awrap%3Bgap%3A20px%3Balign-items%3Astretch%3Bjustify-content%3Acenter%3Bmax-width%3A100%25%7D%0A%20%20%20%20%20%20%23student-quiz-card%2C%23student-names-panel%7Bbackground%3A%23fff%3Bcolor%3A%23111%3Bpadding%3A24px%3Bborder-radius%3A16px%3Bbox-shadow%3A0%2010px%2030px%20rgba(0%2C0%2C0%2C.25)%7D%0A%20%20%20%20%20%20%23student-quiz-card%7Bposition%3Arelative%3Bwidth%3Amin(460px%2C92vw)%3Bdisplay%3Agrid%3Bgap%3A16px%3Bjustify-items%3Acenter%3Balign-content%3Astart%7D%0A%20%20%20%20%20%20%23student-names-panel%7Bwidth%3Amin(680px%2C92vw)%3Bdisplay%3Aflex%3Bflex-direction%3Acolumn%3Bgap%3A12px%7D%0A%20%20%20%20%20%20%23student-names-title%7Bfont-size%3A1rem%3Bfont-weight%3A700%7D%0A%20%20%20%20%20%20%23student-names-grid%7Bdisplay%3Agrid%3Bgrid-auto-flow%3Acolumn%3Bgrid-template-columns%3Arepeat(%24%7BNAME_COLUMNS%7D%2Cminmax(0%2C1fr))%3Bgap%3A4px%208px%7D%0A%20%20%20%20%20%20.name-cell%7Bposition%3Arelative%3Bmin-width%3A0%7D%0A%20%20%20%20%20%20.name-btn%7Bwidth%3A100%25%3Bpadding%3A7px%2026px%207px%2010px%3Bborder-radius%3A8px%3Bborder%3A1px%20solid%20%23e3e3e3%3Bbackground%3A%23fafafa%3Bcolor%3A%23111%3Bfont-size%3A14px%3Btext-align%3Aleft%3Bcursor%3Apointer%3Bwhite-space%3Anowrap%3Boverflow%3Ahidden%3Btext-overflow%3Aellipsis%3Btransition%3Abackground%20.12s%20ease%2Cborder-color%20.12s%20ease%7D%0A%20%20%20%20%20%20.name-btn%3Ahover%7Bbackground%3A%23eee%3Bborder-color%3A%23ccc%7D%0A%20%20%20%20%20%20.name-btn.is-correct%7Bbackground%3A%23d9f5df%3Bborder-color%3A%232e9e4a%3Bcolor%3A%2314532d%3Bfont-weight%3A700%7D%0A%20%20%20%20%20%20.name-btn.is-wrong%7Bbackground%3A%23fde2e2%3Bborder-color%3A%23d64545%3Bcolor%3A%237f1d1d%7D%0A%20%20%20%20%20%20.name-del%7Bposition%3Aabsolute%3Btop%3A50%25%3Bright%3A4px%3Btransform%3AtranslateY(-50%25)%3Bwidth%3A20px%3Bheight%3A20px%3Bpadding%3A0%3Bborder%3Anone%3Bborder-radius%3A50%25%3Bbackground%3Atransparent%3Bcolor%3A%23aaa%3Bfont-size%3A14px%3Bline-height%3A20px%3Btext-align%3Acenter%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20.name-del%3Ahover%7Bbackground%3A%23d64545%3Bcolor%3A%23fff%7D%0A%20%20%20%20%20%20%23student-names-header%7Bdisplay%3Aflex%3Bjustify-content%3Aspace-between%3Balign-items%3Abaseline%3Bgap%3A12px%7D%0A%20%20%20%20%20%20%23restore-names%7Bbackground%3Anone%3Bborder%3Anone%3Bpadding%3A0%3Bfont-size%3A13px%3Bcolor%3A%2306c%3Btext-decoration%3Aunderline%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20%23restore-names%5Bhidden%5D%7Bdisplay%3Anone%7D%0A%20%20%20%20%20%20%23student-names-tools%7Bdisplay%3Aflex%3Balign-items%3Acenter%3Bgap%3A14px%7D%0A%20%20%20%20%20%20%23restore-active%7Bpadding%3A6px%2012px%3Bborder-radius%3A8px%3Bborder%3A1px%20solid%20%23ccc%3Bbackground%3A%23f4f4f4%3Bcolor%3A%23111%3Bfont-size%3A13px%3Bfont-weight%3A600%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20%23restore-active%3Ahover%7Bbackground%3A%23e6e6e6%7D%0A%20%20%20%20%20%20%23student-names-grid.locked%20.name-btn%7Bcursor%3Adefault%7D%0A%20%20%20%20%20%20%23student-names-grid.locked%20.name-btn%3Anot(.is-correct)%3Anot(.is-wrong)%7Bopacity%3A.55%7D%0A%20%20%20%20%20%20%23student-quiz-title%7Bfont-size%3A1.25rem%3Bfont-weight%3A700%7D%0A%20%20%20%20%20%20%23studentPhoto%7Bwidth%3A220px%3Bheight%3A220px%3Bobject-fit%3Acover%3Bborder-radius%3A12px%3Bbox-shadow%3A0%206px%2016px%20rgba(0%2C0%2C0%2C.2)%3Bbackground%3A%23f2f2f2%7D%0A%20%20%20%20%20%20%23quiz-controls%7Bdisplay%3Agrid%3Bgrid-template-columns%3A1fr%20auto%3Bgap%3A8px%3Bwidth%3A100%25%7D%0A%20%20%20%20%20%20%23student-name-guess%7Bpadding%3A12px%2014px%3Bborder-radius%3A10px%3Bborder%3A1px%20solid%20%23ddd%3Bwidth%3A100%25%3Bfont-size%3A16px%7D%0A%20%20%20%20%20%20%23quiz-suggest%7Bwidth%3A100%25%3Bmin-height%3A26px%3Bdisplay%3Aflex%3Bflex-wrap%3Awrap%3Bgap%3A6px%3Balign-items%3Acenter%3Bfont-size%3A13px%3Bcolor%3A%23666%7D%0A%20%20%20%20%20%20.suggest-chip%7Bpadding%3A3px%209px%3Bborder-radius%3A999px%3Bbackground%3A%23f0f0f0%3Bcolor%3A%23333%3Bcursor%3Apointer%3Bborder%3A1px%20solid%20transparent%7D%0A%20%20%20%20%20%20.suggest-chip%3Ahover%7Bbackground%3A%23e2e2e2%7D%0A%20%20%20%20%20%20.suggest-chip.single%7Bbackground%3A%23d9f5df%3Bborder-color%3A%232e9e4a%3Bcolor%3A%2314532d%3Bfont-weight%3A700%7D%0A%20%20%20%20%20%20.suggest-more%7Bcolor%3A%23999%7D%0A%20%20%20%20%20%20%23student-names-grid.filtering%20.name-btn%3Anot(.matches)%7Bopacity%3A.25%7D%0A%20%20%20%20%20%20.quiz-btn%7Bpadding%3A12px%2014px%3Bborder-radius%3A10px%3Bborder%3Anone%3Bcursor%3Apointer%3Bfont-weight%3A600%3Bbackground%3A%23111%3Bcolor%3A%23fff%3Btransition%3Atransform%20.06s%20ease%2C%20box-shadow%20.2s%20ease%7D%0A%20%20%20%20%20%20.quiz-btn%3Aactive%7Btransform%3AtranslateY(1px)%7D%0A%20%20%20%20%20%20.quiz-btn.secondary%7Bbackground%3A%23eee%3Bcolor%3A%23111%7D%0A%20%20%20%20%20%20.quiz-btn.primary%7Bbox-shadow%3A0%200%200%202px%20%23111%20inset%2C%200%200%200%200%20rgba(0%2C0%2C0%2C0)%7D%0A%20%20%20%20%20%20.pulse%7Banimation%3Apulse%201.2s%20infinite%7D%0A%20%20%20%20%20%20%40keyframes%20pulse%7B0%25%7Bbox-shadow%3A0%200%200%200%20rgba(0%2C0%2C0%2C.25)%7D70%25%7Bbox-shadow%3A0%200%200%2010px%20rgba(0%2C0%2C0%2C0)%7D100%25%7Bbox-shadow%3A0%200%200%200%20rgba(0%2C0%2C0%2C0)%7D%7D%0A%20%20%20%20%20%20.enter-icon%7Bfont-size%3A0.9em%3Bmargin-left%3A6px%7D%0A%20%20%20%20%20%20%23quiz-actions%7Bdisplay%3Aflex%3Bgap%3A8px%3Bwidth%3A100%25%7D%0A%20%20%20%20%20%20%23quiz-actions%20.quiz-btn%7Bflex%3A1%7D%0A%20%20%20%20%20%20%23quiz-result%7Bmin-height%3A28px%3Bfont-size%3A1rem%3Bfont-weight%3A600%3Btext-align%3Acenter%7D%0A%20%20%20%20%20%20%23quiz-footer%7Bwidth%3A100%25%3Bdisplay%3Aflex%3Bjustify-content%3Aspace-between%3Balign-items%3Acenter%3Bfont-size%3A0.9rem%3Bcolor%3A%23555%7D%0A%20%20%20%20%20%20%23close-quiz%7Bposition%3Aabsolute%3Btop%3A10px%3Bright%3A10px%3Bbackground%3Atransparent%3Bborder%3Anone%3Bfont-size%3A22px%3Bline-height%3A1%3Bcolor%3A%23666%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20%23close-quiz%3Ahover%7Bcolor%3A%23111%7D%0A%20%20%20%20%20%20%23quiz-credits%7Bfont-size%3A12px%3Bcolor%3A%23666%3Bmargin-top%3A4px%3Bwidth%3A100%25%3Btext-align%3Aright%7D%0A%20%20%20%20%20%20%23quiz-credits%20a%7Bcolor%3A%2306c%3Btext-decoration%3Aunderline%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20%23class-bar%7Bdisplay%3Aflex%3Bflex-wrap%3Awrap%3Bgap%3A6px%3Balign-items%3Acenter%3Bpadding-bottom%3A10px%3Bborder-bottom%3A1px%20solid%20%23eee%7D%0A%20%20%20%20%20%20.class-chip-wrap%7Bdisplay%3Ainline-flex%3Balign-items%3Acenter%3Bborder%3A1px%20solid%20%23ccc%3Bborder-radius%3A999px%3Bbackground%3A%23f4f4f4%3Boverflow%3Ahidden%7D%0A%20%20%20%20%20%20.class-chip-wrap.active%7Bbackground%3A%23111%3Bborder-color%3A%23111%7D%0A%20%20%20%20%20%20.class-chip%7Bpadding%3A6px%204px%206px%2012px%3Bborder%3Anone%3Bbackground%3Atransparent%3Bcolor%3A%23111%3Bfont-size%3A13px%3Bfont-weight%3A600%3Bcursor%3Apointer%3Bmax-width%3A280px%3Boverflow%3Ahidden%3Btext-overflow%3Aellipsis%3Bwhite-space%3Anowrap%7D%0A%20%20%20%20%20%20.class-chip-wrap.active%20.class-chip%7Bcolor%3A%23fff%7D%0A%20%20%20%20%20%20.class-chip%3Adisabled%7Bcursor%3Await%7D%0A%20%20%20%20%20%20.class-del%7Bpadding%3A0%2010px%200%204px%3Bborder%3Anone%3Bbackground%3Atransparent%3Bcolor%3A%23999%3Bfont-size%3A14px%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20.class-del%3Ahover%7Bcolor%3A%23d64545%7D%0A%20%20%20%20%20%20%23class-add%7Bpadding%3A6px%2012px%3Bborder-radius%3A999px%3Bborder%3A1px%20dashed%20%23999%3Bbackground%3A%23fff%3Bcolor%3A%23333%3Bfont-size%3A13px%3Bcursor%3Apointer%7D%0A%20%20%20%20%20%20%23class-add%3Ahover%7Bbackground%3A%23f4f4f4%7D%0A%20%20%20%20%60%3B%0A%20%20%20%20document.head.appendChild(styleEl)%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Overlay%20UI%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20quizOverlayEl%20%3D%20document.createElement('div')%3B%0A%20%20%20%20quizOverlayEl.id%20%3D%20QUIZ_OVERLAY_ID%3B%0A%20%20%20%20quizOverlayEl.innerHTML%20%3D%20%60%0A%20%20%20%20%3Cdiv%20id%3D%22student-quiz-layout%22%3E%0A%20%20%20%20%20%20%3Cdiv%20id%3D%22student-quiz-card%22%20role%3D%22dialog%22%20aria-modal%3D%22true%22%20aria-labelledby%3D%22student-quiz-title%22%3E%0A%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22close-quiz%22%20aria-label%3D%22Close%22%3E%E2%9C%95%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-header%22%20style%3D%22text-align%3Acenter%3B%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22student-quiz-title%22%3EBenjamin%E2%80%99s%20Students%20Quiz%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cimg%20id%3D%22studentPhoto%22%20alt%3D%22Student%20photo%22%20decoding%3D%22async%22%20loading%3D%22eager%22%20%2F%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-controls%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cinput%20id%3D%22student-name-guess%22%20name%3D%22guess%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20placeholder%3D%22First%20name%3F%22%20autocomplete%3D%22off%22%20%2F%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22guess-btn%22%20class%3D%22quiz-btn%22%3EGuess%20%3Cspan%20class%3D%22enter-icon%22%3E%E2%86%B5%3C%2Fspan%3E%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-suggest%22%20aria-live%3D%22polite%22%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-actions%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22next-btn%22%20class%3D%22quiz-btn%20secondary%22%20title%3D%22Show%20another%20student%22%3ENext%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22reveal-btn%22%20class%3D%22quiz-btn%20secondary%22%20title%3D%22Reveal%20the%20answer%22%3EReveal%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-result%22%20aria-live%3D%22polite%22%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-footer%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-score%22%3EScore%3A%20%3Cspan%20id%3D%22score-correct%22%3E0%3C%2Fspan%3E%2F%3Cspan%20id%3D%22score-total%22%3E0%3C%2Fspan%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-progress%22%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22quiz-credits%22%3ELavet%20af%20%3Ca%20href%3D%22https%3A%2F%2Fwww.linkedin.com%2Fin%2Fbenjamindalshughes%2F%22%20target%3D%22_blank%22%20rel%3D%22noopener%20noreferrer%22%3EBenjamin%20Hughes%3C%2Fa%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%3Cdiv%20id%3D%22student-names-panel%22%20aria-label%3D%22Student%20names%22%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22class-bar%22%20aria-label%3D%22Classes%22%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22student-names-header%22%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22student-names-title%22%3EClick%20a%20name%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22student-names-tools%22%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22restore-names%22%20type%3D%22button%22%20hidden%3E%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%20%20%20%20%3Cbutton%20id%3D%22restore-active%22%20type%3D%22button%22%20title%3D%22Bring%20back%20every%20name%20you%20have%20guessed%20correctly%20(not%20the%20ones%20removed%20with%20%C3%97)%22%3ERestore%20Active%20Set%3C%2Fbutton%3E%0A%20%20%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%20%20%20%20%3Cdiv%20id%3D%22student-names-grid%22%3E%3C%2Fdiv%3E%0A%20%20%20%20%20%20%3C%2Fdiv%3E%0A%20%20%20%20%3C%2Fdiv%3E%0A%20%20%60%3B%0A%20%20%20%20document.body.appendChild(quizOverlayEl)%3B%0A%0A%20%20%20%20%2F%2F%20Close%20handlers%0A%20%20%20%20quizOverlayEl.addEventListener('click'%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(e.target%20%3D%3D%3D%20quizOverlayEl)%20closeOverlay()%3B%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20escHandler%20%3D%20(e)%20%3D%3E%20%7B%20if%20(e.key%20%3D%3D%3D%20'Escape')%20closeOverlay()%3B%20%7D%3B%0A%20%20%20%20document.addEventListener('keydown'%2C%20escHandler)%3B%0A%20%20%20%20let%20autoNextTimer%20%3D%20null%3B%0A%20%20%20%20function%20closeOverlay()%20%7B%0A%20%20%20%20%20%20%20%20clearTimeout(autoNextTimer)%3B%0A%20%20%20%20%20%20%20%20document.removeEventListener('keydown'%2C%20escHandler)%3B%0A%20%20%20%20%20%20%20%20quizOverlayEl.remove()%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Refs%0A%20%20%20%20const%20imgEl%20%3D%20document.getElementById('studentPhoto')%3B%0A%20%20%20%20const%20nameInput%20%3D%20document.getElementById('student-name-guess')%3B%0A%20%20%20%20const%20guessBtn%20%3D%20document.getElementById('guess-btn')%3B%0A%20%20%20%20const%20nextBtn%20%3D%20document.getElementById('next-btn')%3B%0A%20%20%20%20const%20revealBtn%20%3D%20document.getElementById('reveal-btn')%3B%0A%20%20%20%20const%20resultEl%20%3D%20document.getElementById('quiz-result')%3B%0A%20%20%20%20const%20scoreCorrectEl%20%3D%20document.getElementById('score-correct')%3B%0A%20%20%20%20const%20scoreTotalEl%20%3D%20document.getElementById('score-total')%3B%0A%20%20%20%20const%20progressEl%20%3D%20document.getElementById('quiz-progress')%3B%0A%20%20%20%20const%20namesGridEl%20%3D%20document.getElementById('student-names-grid')%3B%0A%20%20%20%20const%20suggestEl%20%3D%20document.getElementById('quiz-suggest')%3B%0A%20%20%20%20document.getElementById('close-quiz').addEventListener('click'%2C%20closeOverlay)%3B%0A%0A%20%20%20%20const%20restoreBtn%20%3D%20document.getElementById('restore-names')%3B%0A%0A%20%20%20%20%2F%2F%20Name%20panel%3A%205%20aligned%20columns%2C%20alphabetical%20going%20down%20each%20column.%0A%20%20%20%20%2F%2F%20Re-rendered%20whenever%20a%20name%20is%20removed%2C%20so%20the%20list%20collapses%20neatly.%0A%20%20%20%20const%20nameButtons%20%3D%20new%20Map()%3B%20%2F%2F%20normalized%20first%20name%20-%3E%20button%0A%20%20%20%20function%20renderNameGrid()%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20Unique%20first%20names%20(two%20%22Emil%22s%20share%20one%20button)%0A%20%20%20%20%20%20%20%20const%20seen%20%3D%20new%20Set()%3B%0A%20%20%20%20%20%20%20%20const%20firstNames%20%3D%20%5B%5D%3B%0A%20%20%20%20%20%20%20%20const%20visible%20%3D%20students.filter(s%20%3D%3E%20!learnedIds.has(s.id)%20%7C%7C%20s%20%3D%3D%3D%20currentStudent)%3B%0A%20%20%20%20%20%20%20%20for%20(const%20s%20of%20visible)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20key%20%3D%20normalize(s.first)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!seen.has(key))%20%7B%20seen.add(key)%3B%20firstNames.push(s.first)%3B%20%7D%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20firstNames.sort((a%2C%20b)%20%3D%3E%20a.localeCompare(b%2C%20'da'))%3B%0A%0A%20%20%20%20%20%20%20%20namesGridEl.textContent%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20nameButtons.clear()%3B%0A%20%20%20%20%20%20%20%20const%20rowCount%20%3D%20Math.max(1%2C%20Math.ceil(firstNames.length%20%2F%20NAME_COLUMNS))%3B%0A%20%20%20%20%20%20%20%20namesGridEl.style.gridTemplateRows%20%3D%20%60repeat(%24%7BrowCount%7D%2C%20auto)%60%3B%0A%0A%20%20%20%20%20%20%20%20firstNames.forEach((first)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20cell%20%3D%20document.createElement('div')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20cell.className%20%3D%20'name-cell'%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20btn%20%3D%20document.createElement('button')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.type%20%3D%20'button'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.className%20%3D%20'name-btn'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.textContent%20%3D%20first%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.title%20%3D%20first%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.addEventListener('click'%2C%20()%20%3D%3E%20handleNameClick(first%2C%20btn))%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20del%20%3D%20document.createElement('button')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.type%20%3D%20'button'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.className%20%3D%20'name-del'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.textContent%20%3D%20'%C3%97'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.title%20%3D%20%60Remove%20%24%7Bfirst%7D%20from%20practice%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.setAttribute('aria-label'%2C%20%60Remove%20%24%7Bfirst%7D%20from%20practice%60)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.addEventListener('click'%2C%20(e)%20%3D%3E%20%7B%20e.stopPropagation()%3B%20removeFirstName(first)%3B%20%7D)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20cell.append(btn%2C%20del)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20namesGridEl.appendChild(cell)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20nameButtons.set(normalize(first)%2C%20btn)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20%20%20restoreBtn.hidden%20%3D%20removedIds.size%20%3D%3D%3D%200%3B%0A%20%20%20%20%20%20%20%20restoreBtn.textContent%20%3D%20%60Restore%20removed%20(%24%7BremovedIds.size%7D)%60%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20updateProgress()%20%7B%0A%20%20%20%20%20%20%20%20progressEl.textContent%20%3D%20%60%24%7BremainingStudents().length%7D%20of%20%24%7Bstudents.length%7D%20left%60%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Remove%20everyone%20with%20this%20first%20name%20from%20practice%0A%20%20%20%20function%20removeFirstName(first)%20%7B%0A%20%20%20%20%20%20%20%20const%20key%20%3D%20normalize(first)%3B%0A%20%20%20%20%20%20%20%20const%20isGone%20%3D%20(s)%20%3D%3E%20normalize(s.first)%20%3D%3D%3D%20key%3B%0A%20%20%20%20%20%20%20%20students.filter(isGone).forEach((s)%20%3D%3E%20removedIds.add(s.id))%3B%0A%20%20%20%20%20%20%20%20saveRemoved()%3B%0A%20%20%20%20%20%20%20%20students%20%3D%20students.filter((s)%20%3D%3E%20!isGone(s))%3B%0A%20%20%20%20%20%20%20%20unseenStudents%20%3D%20unseenStudents.filter((s)%20%3D%3E%20!isGone(s))%3B%0A%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%0A%20%20%20%20%20%20%20%20if%20(currentStudent%20%26%26%20isGone(currentStudent))%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20nextStudent()%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20the%20person%20on%20screen%20was%20removed%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(currentStudent%20%26%26%20!awaitingGuess)%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateProgress()%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Restore%20Active%20Set%3A%20start%20a%20fresh%20round%20with%20everyone%20not%20removed%20by%20%C3%97%0A%20%20%20%20document.getElementById('restore-active').addEventListener('click'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20learnedIds.clear()%3B%0A%20%20%20%20%20%20%20%20unseenStudents%20%3D%20students.filter((s)%20%3D%3E%20s%20!%3D%3D%20currentStudent)%3B%20%2F%2F%20everyone%20gets%20shown%20again%0A%20%20%20%20%20%20%20%20if%20(!currentStudent)%20%7B%20nextStudent()%3B%20return%3B%20%7D%0A%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20%20%20%20%20if%20(!awaitingGuess)%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20updateProgress()%3B%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20restoreBtn.addEventListener('click'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20const%20restored%20%3D%20allStudents.filter((s)%20%3D%3E%20removedIds.has(s.id))%3B%0A%20%20%20%20%20%20%20%20restored.forEach((s)%20%3D%3E%20learnedIds.delete(s.id))%3B%0A%20%20%20%20%20%20%20%20removedIds.clear()%3B%0A%20%20%20%20%20%20%20%20saveRemoved()%3B%0A%20%20%20%20%20%20%20%20students%20%3D%20%5B...allStudents%5D%3B%0A%20%20%20%20%20%20%20%20unseenStudents.push(...restored)%3B%20%20%2F%2F%20restored%20students%20count%20as%20not%20yet%20seen%0A%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20%20%20%20%20if%20(!currentStudent)%20nextStudent()%3B%0A%20%20%20%20%20%20%20%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!awaitingGuess)%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateProgress()%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20State%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20let%20currentStudent%20%3D%20null%3B%0A%20%20%20%20let%20scoreCorrect%20%3D%200%3B%0A%20%20%20%20let%20scoreTotal%20%3D%200%3B%0A%20%20%20%20let%20awaitingGuess%20%3D%20true%3B%0A%20%20%20%20let%20revealActsAsNext%20%3D%20false%3B%20%2F%2F%20once%20the%20name%20is%20known%2C%20the%20Reveal%20button%20works%20as%20Next%0A%20%20%20%20let%20revealedAt%20%3D%200%3B%0A%0A%20%20%20%20function%20setPrimaryAction(which)%20%7B%0A%20%20%20%20%20%20%20%20const%20makePrimary%20%3D%20(btn)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.remove('secondary')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.add('primary'%2C%20'pulse')%3B%0A%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20const%20makeSecondary%20%3D%20(btn)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.add('secondary')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.remove('primary'%2C%20'pulse')%3B%0A%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20if%20(which%20%3D%3D%3D%20'guess')%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20makePrimary(guessBtn)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!guessBtn.querySelector('.enter-icon'))%20guessBtn.insertAdjacentHTML('beforeend'%2C%20'%20%3Cspan%20class%3D%22enter-icon%22%3E%E2%86%B5%3C%2Fspan%3E')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(nextBtn.querySelector('.enter-icon'))%20nextBtn.querySelector('.enter-icon').remove()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20makeSecondary(nextBtn)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20awaitingGuess%20%3D%20true%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20namesGridEl.classList.remove('locked')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateSuggestions()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealActsAsNext%20%3D%20false%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealBtn.textContent%20%3D%20'Reveal'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealBtn.title%20%3D%20'Reveal%20the%20answer'%3B%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20makePrimary(nextBtn)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!nextBtn.querySelector('.enter-icon'))%20nextBtn.insertAdjacentHTML('beforeend'%2C%20'%20%3Cspan%20class%3D%22enter-icon%22%3E%E2%86%B5%3C%2Fspan%3E')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(guessBtn.querySelector('.enter-icon'))%20guessBtn.querySelector('.enter-icon').remove()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20makeSecondary(guessBtn)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20awaitingGuess%20%3D%20false%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20namesGridEl.classList.add('locked')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateSuggestions()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Name%20is%20now%20known%20(guess%2C%20click%20or%20reveal)%3A%20Reveal%20button%20works%20as%20Next%0A%20%20%20%20%20%20%20%20%20%20%20%20revealActsAsNext%20%3D%20true%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealedAt%20%3D%20Date.now()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealBtn.textContent%20%3D%20'Next'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20revealBtn.title%20%3D%20'Show%20another%20student'%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20clearNameHighlights()%20%7B%0A%20%20%20%20%20%20%20%20nameButtons.forEach((btn)%20%3D%3E%20btn.classList.remove('is-correct'%2C%20'is-wrong'))%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Live%20suggestions%20while%20typing%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20MAX_CHIPS%20%3D%206%3B%0A%20%20%20%20function%20visibleFirstNames()%20%7B%0A%20%20%20%20%20%20%20%20return%20%5B...nameButtons.values()%5D.map((btn)%20%3D%3E%20btn.textContent)%3B%0A%20%20%20%20%7D%0A%20%20%20%20function%20matchingNames(typed)%20%7B%0A%20%20%20%20%20%20%20%20const%20t%20%3D%20normalize(typed)%3B%0A%20%20%20%20%20%20%20%20if%20(!t)%20return%20%5B%5D%3B%0A%20%20%20%20%20%20%20%20return%20visibleFirstNames().filter((n)%20%3D%3E%20normalize(n).startsWith(t))%3B%0A%20%20%20%20%7D%0A%20%20%20%20function%20updateSuggestions()%20%7B%0A%20%20%20%20%20%20%20%20const%20typed%20%3D%20nameInput.value%3B%0A%20%20%20%20%20%20%20%20const%20matches%20%3D%20awaitingGuess%20%3F%20matchingNames(typed)%20%3A%20%5B%5D%3B%0A%20%20%20%20%20%20%20%20suggestEl.textContent%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20namesGridEl.classList.toggle('filtering'%2C%20awaitingGuess%20%26%26%20normalize(typed).length%20%3E%200)%3B%0A%20%20%20%20%20%20%20%20nameButtons.forEach((btn%2C%20key)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.toggle('matches'%2C%20matches.some((n)%20%3D%3E%20normalize(n)%20%3D%3D%3D%20key))%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20if%20(!awaitingGuess%20%7C%7C%20!normalize(typed))%20return%3B%0A%20%20%20%20%20%20%20%20if%20(!matches.length)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20suggestEl.textContent%20%3D%20'No%20name%20starts%20with%20that'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20matches.slice(0%2C%20MAX_CHIPS).forEach((n)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20chip%20%3D%20document.createElement('span')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.className%20%3D%20'suggest-chip'%20%2B%20(matches.length%20%3D%3D%3D%201%20%3F%20'%20single'%20%3A%20'')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.textContent%20%3D%20n%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.addEventListener('mousedown'%2C%20(e)%20%3D%3E%20e.preventDefault())%3B%20%2F%2F%20keep%20focus%20in%20the%20field%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.addEventListener('click'%2C%20()%20%3D%3E%20%7B%20nameInput.value%20%3D%20n%3B%20checkAnswer()%3B%20%7D)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20suggestEl.appendChild(chip)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20if%20(matches.length%20%3E%20MAX_CHIPS)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20more%20%3D%20document.createElement('span')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20more.className%20%3D%20'suggest-more'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20more.textContent%20%3D%20%60%2B%24%7Bmatches.length%20-%20MAX_CHIPS%7D%20more%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20suggestEl.appendChild(more)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20nameInput.addEventListener('input'%2C%20updateSuggestions)%3B%0A%0A%20%20%20%20function%20highlightCorrectName()%20%7B%0A%20%20%20%20%20%20%20%20nameButtons.get(normalize(currentStudent.first))%3F.classList.add('is-correct')%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20updateScore()%20%7B%0A%20%20%20%20%20%20%20%20scoreCorrectEl.textContent%20%3D%20String(scoreCorrect)%3B%0A%20%20%20%20%20%20%20%20scoreTotalEl.textContent%20%3D%20String(scoreTotal)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Load%20student%20image%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20function%20loadStudentImage(student)%20%7B%0A%20%20%20%20%20%20%20%20const%20url%20%3D%20%60..%2Finclude%2FInfoPage.aspx%3Flogin%3D%24%7BencodeURIComponent(student.id)%7D%26type%3DS%60%3B%0A%20%20%20%20%20%20%20%20return%20new%20Promise((resolve%2C%20reject)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20onLoad%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20doc%20%3D%20loaderIframe.contentDocument%20%7C%7C%20loaderIframe.contentWindow%3F.document%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(!doc)%20throw%20new%20Error('No%20iframe%20document')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20img%20%3D%20doc.querySelector('img')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(!img)%20return%20reject(new%20Error('No%20%3Cimg%3E%20found%20in%20iframe'))%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20resolve(img.src)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20catch%20(err)%20%7B%20reject(err)%3B%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20finally%20%7B%20loaderIframe.removeEventListener('load'%2C%20onLoad)%3B%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20loaderIframe.addEventListener('load'%2C%20onLoad%2C%20%7B%20once%3A%20true%20%7D)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20loaderIframe.src%20%3D%20url%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20async%20function%20showStudent(student)%20%7B%0A%20%20%20%20%20%20%20%20currentStudent%20%3D%20student%3B%0A%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20nameInput.value%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20imgEl.src%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20imgEl.alt%20%3D%20'Loading...'%3B%0A%20%20%20%20%20%20%20%20renderNameGrid()%3B%20%2F%2F%20names%20already%20guessed%20correctly%20drop%20out%20here%0A%20%20%20%20%20%20%20%20updateProgress()%3B%0A%0A%20%20%20%20%20%20%20%20setPrimaryAction('guess')%3B%0A%20%20%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20imgSrc%20%3D%20await%20loadStudentImage(student)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(currentStudent%20%3D%3D%3D%20student)%20imgEl.src%20%3D%20imgSrc%3B%20%2F%2F%20ignore%20stale%20loads%0A%20%20%20%20%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(currentStudent%20!%3D%3D%20student)%20return%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20'Could%20not%20load%20image.%20Try%20Next.'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20setPrimaryAction('next')%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Logic%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20%2F%2F%20Typed%20answer%3A%20first%20name%20only%2C%20first%204%20letters%20are%20enough%0A%20%20%20%20function%20checkAnswer()%20%7B%0A%20%20%20%20%20%20%20%20if%20(!currentStudent%20%7C%7C%20!awaitingGuess)%20return%3B%0A%20%20%20%20%20%20%20%20const%20matches%20%3D%20matchingNames(nameInput.value)%3B%0A%20%20%20%20%20%20%20%20if%20(matches.length%20%3D%3D%3D%201)%20nameInput.value%20%3D%20matches%5B0%5D%3B%20%2F%2F%20complete%20the%20single%20match%0A%20%20%20%20%20%20%20%20const%20guessFirst%20%3D%20normalize(nameInput.value).split(%2F%5Cs%2B%2F)%5B0%5D%3B%0A%20%20%20%20%20%20%20%20const%20firstName%20%3D%20normalize(currentStudent.first)%3B%0A%20%20%20%20%20%20%20%20scoreTotal%20%2B%3D%201%3B%0A%0A%20%20%20%20%20%20%20%20const%20isCorrect%20%3D%20firstName.length%20%3C%3D%204%0A%20%20%20%20%20%20%20%20%20%20%20%20%3F%20guessFirst%20%3D%3D%3D%20firstName%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20short%20names%20(Bo%2C%20Ida%2C%20Emil)%3A%20must%20match%20fully%0A%20%20%20%20%20%20%20%20%20%20%20%20%3A%20guessFirst.slice(0%2C%204)%20%3D%3D%3D%20firstName.slice(0%2C%204)%3B%20%2F%2F%20otherwise%20the%20first%204%20letters%20are%20enough%0A%0A%20%20%20%20%20%20%20%20if%20(isCorrect)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20scoreCorrect%20%2B%3D%201%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Correct%20%F0%9F%8E%89%20%E2%80%94%20%24%7BcurrentStudent.first%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20adjustWeight(currentStudent.id%2C%20true)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20learnedIds.add(currentStudent.id)%3B%20%2F%2F%20done%20for%20this%20round%3B%20leaves%20the%20list%20on%20Next%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Wrong%20%F0%9F%98%AD%20%E2%80%94%20It%E2%80%99s%20%24%7BcurrentStudent.first%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20adjustWeight(currentStudent.id%2C%20false)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20updateScore()%3B%0A%20%20%20%20%20%20%20%20nameInput.focus()%3B%20nameInput.select()%3B%0A%20%20%20%20%20%20%20%20setPrimaryAction('next')%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Clicked%20answer%20in%20the%20name%20panel%0A%20%20%20%20function%20handleNameClick(clickedFirst%2C%20btn)%20%7B%0A%20%20%20%20%20%20%20%20if%20(!currentStudent%20%7C%7C%20!awaitingGuess)%20return%3B%0A%20%20%20%20%20%20%20%20scoreTotal%20%2B%3D%201%3B%0A%20%20%20%20%20%20%20%20const%20isCorrect%20%3D%20normalize(clickedFirst)%20%3D%3D%3D%20normalize(currentStudent.first)%3B%0A%0A%20%20%20%20%20%20%20%20if%20(isCorrect)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Correct%3A%20brief%20green%20flash%2C%20then%20move%20on%20automatically%0A%20%20%20%20%20%20%20%20%20%20%20%20scoreCorrect%20%2B%3D%201%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20adjustWeight(currentStudent.id%2C%20true)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20learnedIds.add(currentStudent.id)%3B%20%2F%2F%20done%20for%20this%20round%3B%20leaves%20the%20list%20on%20Next%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Correct%20%F0%9F%8E%89%20%E2%80%94%20%24%7BcurrentStudent.first%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.add('is-correct')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateScore()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20setPrimaryAction('next')%3B%20%2F%2F%20locks%20the%20panel%20during%20the%20short%20pause%0A%20%20%20%20%20%20%20%20%20%20%20%20autoNextTimer%20%3D%20setTimeout(nextStudent%2C%20AUTO_NEXT_DELAY_MS)%3B%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Wrong%3A%20mark%20the%20click%2C%20show%20%2B%20fill%20in%20the%20right%20name%2C%20wait%20for%20manual%20Next%0A%20%20%20%20%20%20%20%20%20%20%20%20adjustWeight(currentStudent.id%2C%20false)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Wrong%20%F0%9F%98%AD%20%E2%80%94%20It%E2%80%99s%20%24%7BcurrentStudent.first%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20btn.classList.add('is-wrong')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20nameInput.value%20%3D%20currentStudent.first%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateScore()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20setPrimaryAction('next')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20nameInput.focus()%3B%20nameInput.select()%3B%20%2F%2F%20Enter%20now%20means%20Next%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20nextStudent()%20%7B%0A%20%20%20%20%20%20%20%20clearTimeout(autoNextTimer)%3B%0A%20%20%20%20%20%20%20%20if%20(!students.length)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20currentStudent%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20imgEl.removeAttribute('src')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20imgEl.alt%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20nameInput.value%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20'No%20students%20left%20to%20practice.'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20progressEl.textContent%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20const%20remaining%20%3D%20remainingStudents()%3B%0A%20%20%20%20%20%20%20%20if%20(!remaining.length)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Every%20name%20has%20been%20guessed%20correctly%20once%0A%20%20%20%20%20%20%20%20%20%20%20%20currentStudent%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20imgEl.removeAttribute('src')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20imgEl.alt%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20nameInput.value%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20'All%20names%20guessed%20%F0%9F%8E%89%20%E2%80%94%20press%20%E2%80%9CRestore%20Active%20Set%E2%80%9D%20to%20go%20again.'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20updateProgress()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%20%20let%20candidate%3B%0A%20%20%20%20%20%20%20%20if%20(unseenStudents.length%20%3E%200)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Phase%201%3A%20go%20through%20everyone%20randomly%20first%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20randomIndex%20%3D%20Math.floor(Math.random()%20*%20unseenStudents.length)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20candidate%20%3D%20unseenStudents%5BrandomIndex%5D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20unseenStudents.splice(randomIndex%2C%201)%3B%0A%20%20%20%20%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Phase%202%3A%20weighted%20algorithm%0A%20%20%20%20%20%20%20%20%20%20%20%20candidate%20%3D%20pickWeightedStudent(remaining%2C%20currentStudent%3F.id)%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20showStudent(candidate)%3B%0A%20%20%20%20%20%20%20%20nameInput.focus()%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Events%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20guessBtn.addEventListener('click'%2C%20checkAnswer)%3B%0A%20%20%20%20nextBtn.addEventListener('click'%2C%20nextStudent)%3B%0A%20%20%20%20revealBtn.addEventListener('click'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(!currentStudent)%20return%3B%0A%20%20%20%20%20%20%20%20if%20(revealActsAsNext)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20Ignore%20the%202nd%20click%20of%20an%20accidental%20double-click%20right%20after%20revealing%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(Date.now()%20-%20revealedAt%20%3E%20350)%20nextStudent()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20if%20(!awaitingGuess)%20return%3B%0A%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60It%E2%80%99s%20%24%7BcurrentStudent.first%7D%60%3B%0A%20%20%20%20%20%20%20%20nameInput.value%20%3D%20currentStudent.first%3B%0A%20%20%20%20%20%20%20%20adjustWeight(currentStudent.id%2C%20false)%3B%20%2F%2F%20Count%20as%20'hard'%0A%20%20%20%20%20%20%20%20highlightCorrectName()%3B%0A%20%20%20%20%20%20%20%20setPrimaryAction('next')%3B%0A%20%20%20%20%20%20%20%20nameInput.focus()%3B%20nameInput.select()%3B%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%2F%2F%20Enter%20in%20the%20text%20field%3A%20Guess%20while%20unanswered%2C%20otherwise%20Next.%0A%20%20%20%20%2F%2F%20Buttons%20keep%20the%20browser's%20normal%20behaviour%3A%20Enter%20activates%20the%20focused%20button%20only.%0A%20%20%20%20nameInput.addEventListener('keydown'%2C%20(e)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20if%20(e.key%20%3D%3D%3D%20'Enter')%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20e.preventDefault()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(awaitingGuess)%20checkAnswer()%3B%20else%20nextStudent()%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Class%20switching%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20const%20classBarEl%20%3D%20document.getElementById('class-bar')%3B%0A%20%20%20%20let%20classLoading%20%3D%20false%3B%0A%0A%20%20%20%20function%20renderClassBar()%20%7B%0A%20%20%20%20%20%20%20%20classBarEl.textContent%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20savedClasses.forEach((id)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20wrap%20%3D%20document.createElement('span')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20wrap.className%20%3D%20'class-chip-wrap'%20%2B%20(id%20%3D%3D%3D%20activeClass%20%3F%20'%20active'%20%3A%20'')%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20chip%20%3D%20document.createElement('button')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.type%20%3D%20'button'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.className%20%3D%20'class-chip'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.textContent%20%3D%20id%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.title%20%3D%20%60Load%20%24%7Bid%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.disabled%20%3D%20classLoading%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20chip.addEventListener('click'%2C%20()%20%3D%3E%20switchClass(id))%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20del%20%3D%20document.createElement('button')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.type%20%3D%20'button'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.className%20%3D%20'class-del'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.textContent%20%3D%20'%C3%97'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.title%20%3D%20%60Forget%20%24%7Bid%7D%60%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20del.addEventListener('click'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20savedClasses%20%3D%20savedClasses.filter((c)%20%3D%3E%20c%20!%3D%3D%20id)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20saveClasses()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20renderClassBar()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20wrap.append(chip%2C%20del)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20classBarEl.appendChild(wrap)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%0A%20%20%20%20%20%20%20%20const%20add%20%3D%20document.createElement('button')%3B%0A%20%20%20%20%20%20%20%20add.type%20%3D%20'button'%3B%0A%20%20%20%20%20%20%20%20add.id%20%3D%20'class-add'%3B%0A%20%20%20%20%20%20%20%20add.textContent%20%3D%20'%2B%20Add%20class'%3B%0A%20%20%20%20%20%20%20%20add.title%20%3D%20'Paste%20a%20class%20ID%20from%20UMS'%3B%0A%20%20%20%20%20%20%20%20add.disabled%20%3D%20classLoading%3B%0A%20%20%20%20%20%20%20%20add.addEventListener('click'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20id%20%3D%20(prompt('Paste%20the%20class%20ID')%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!id)%20return%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!savedClasses.includes(id))%20%7B%20savedClasses.push(id)%3B%20saveClasses()%3B%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20switchClass(id)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20classBarEl.appendChild(add)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20Loads%20the%20UMS%20page%20in%20a%20hidden%20iframe%2C%20runs%20the%20search%20there%2C%20and%20reads%20the%20students%0A%20%20%20%20function%20loadClassFromUms(id)%20%7B%0A%20%20%20%20%20%20%20%20return%20new%20Promise((resolve%2C%20reject)%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20document.getElementById('classLoader')%3F.remove()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20frame%20%3D%20document.createElement('iframe')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20frame.id%20%3D%20'classLoader'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20frame.setAttribute('aria-hidden'%2C%20'true')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20frame.style.display%20%3D%20'none'%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20let%20step%20%3D%200%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20finish%20%3D%20(fn%2C%20value)%20%3D%3E%20%7B%20clearTimeout(timer)%3B%20frame.remove()%3B%20fn(value)%3B%20%7D%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20timer%20%3D%20setTimeout(()%20%3D%3E%20finish(reject%2C%20new%20Error('Timed%20out%20loading%20class'))%2C%2030000)%3B%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20frame.addEventListener('load'%2C%20()%20%3D%3E%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20doc%20%3D%20frame.contentDocument%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(!doc)%20throw%20new%20Error('No%20iframe%20document')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(step%20%3D%3D%3D%200)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20input%20%3D%20doc.querySelector(SEARCH_SEL)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20btn%20%3D%20doc.querySelector(SEARCH_BTN_SEL)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(!input%20%7C%7C%20!btn)%20throw%20new%20Error('Search%20box%20not%20found')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20step%20%3D%201%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20input.value%20%3D%20id%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20btn.click()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20same%20%3D%20(v)%20%3D%3E%20(v%20%7C%7C%20'').trim().toLowerCase()%20%3D%3D%3D%20id.toLowerCase()%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20hits%20%3D%20extractStudents(doc)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20list%20%3D%20hits.filter((s)%20%3D%3E%20!same(s.id)%20%26%26%20!same(s.name))%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(list.length)%20%7B%20finish(resolve%2C%20list)%3B%20return%3B%20%7D%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20The%20search%20only%20found%20the%20class%20itself%3A%20click%20it%20open%2C%20like%20a%20person%20would%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(hits.length%20%26%26%20step%20%3C%206)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20const%20span%20%3D%20%24%24('%5Bid%5E%3D%22DisplayResult_SearchResultCtl_SearchDataList_lbl%22%5D'%2C%20doc)%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20.find((el)%20%3D%3E%20same(el.textContent))%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20let%20el%20%3D%20span%2C%20target%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20for%20(let%20i%20%3D%200%3B%20el%20%26%26%20i%20%3C%208%20%26%26%20!target%3B%20i%2B%2B%2C%20el%20%3D%20el.parentElement)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(el.matches%3F.('a%5Bhref%5D%2C%20%5Bonclick%5D'))%20target%20%3D%20el%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20else%20target%20%3D%20el.querySelector%3F.('a%5Bhref%5D%3Anot(%5Bhref%3D%22%23%22%5D)%2C%20%5Bonclick%5D')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(target)%20%7B%20step%20%2B%3D%201%3B%20target.click()%3B%20return%3B%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20throw%20new%20Error('Found%20the%20class%20but%20could%20not%20open%20it')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20if%20(step%20%3C%206)%20%7B%20step%20%2B%3D%201%3B%20return%3B%20%7D%20%2F%2F%20wait%20for%20one%20more%20page%20load%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20finish(resolve%2C%20list)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%20catch%20(err)%20%7B%20finish(reject%2C%20err)%3B%20%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20frame.src%20%3D%20location.href%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20document.body.appendChild(frame)%3B%0A%20%20%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20async%20function%20switchClass(id)%20%7B%0A%20%20%20%20%20%20%20%20if%20(classLoading)%20return%3B%0A%20%20%20%20%20%20%20%20classLoading%20%3D%20true%3B%0A%20%20%20%20%20%20%20%20activeClass%20%3D%20id%3B%0A%20%20%20%20%20%20%20%20renderClassBar()%3B%0A%20%20%20%20%20%20%20%20clearTimeout(autoNextTimer)%3B%0A%20%20%20%20%20%20%20%20currentStudent%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20imgEl.removeAttribute('src')%3B%0A%20%20%20%20%20%20%20%20imgEl.alt%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20nameInput.value%20%3D%20''%3B%0A%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Loading%20%24%7Bid%7D%E2%80%A6%60%3B%0A%20%20%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20const%20list%20%3D%20await%20loadClassFromUms(id)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20if%20(!list.length)%20throw%20new%20Error('No%20students%20found')%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20rememberLastClass(id)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20setStudents(list)%3B%0A%20%20%20%20%20%20%20%20%7D%20catch%20(err)%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20console.warn(err)%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20%60Could%20not%20load%20%24%7Bid%7D.%20Check%20the%20class%20ID.%60%3B%0A%20%20%20%20%20%20%20%20%7D%20finally%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20classLoading%20%3D%20false%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20renderClassBar()%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20function%20setStudents(list)%20%7B%0A%20%20%20%20%20%20%20%20allStudents%20%3D%20list%3B%0A%20%20%20%20%20%20%20%20students%20%3D%20allStudents.filter((s)%20%3D%3E%20!removedIds.has(s.id))%3B%0A%20%20%20%20%20%20%20%20learnedIds.clear()%3B%0A%20%20%20%20%20%20%20%20unseenStudents%20%3D%20%5B...students%5D%3B%0A%20%20%20%20%20%20%20%20studentWeights%20%3D%20%7B%7D%3B%0A%20%20%20%20%20%20%20%20scoreCorrect%20%3D%200%3B%0A%20%20%20%20%20%20%20%20scoreTotal%20%3D%200%3B%0A%20%20%20%20%20%20%20%20updateScore()%3B%0A%20%20%20%20%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20%20%20%20%20nextStudent()%3B%0A%20%20%20%20%20%20%20%20nameInput.focus()%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%20%3D%3D%3D%3D%20Start%20%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%3D%0A%20%20%20%20renderClassBar()%3B%0A%20%20%20%20renderNameGrid()%3B%0A%20%20%20%20if%20(allStudents.length)%20%7B%0A%20%20%20%20%20%20%20%20nextStudent()%3B%0A%20%20%20%20%7D%20else%20if%20(savedClasses.length)%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20No%20class%20on%20the%20page%3A%20load%20the%20last%20one%20used%0A%20%20%20%20%20%20%20%20switchClass(savedClasses.includes(lastClass)%20%3F%20lastClass%20%3A%20savedClasses%5B0%5D)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20%20%20nextStudent()%3B%0A%20%20%20%20%20%20%20%20resultEl.textContent%20%3D%20'Click%20%E2%80%9C%2B%20Add%20class%E2%80%9D%20and%20paste%20a%20class%20ID.'%3B%0A%20%20%20%20%7D%0A%20%20%20%20nameInput.focus()%3B%0A%7D)()%3B" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;border-radius:10px;text-decoration:none;font-weight:600">🎓 Student Quiz</a></p><p>Then open UMS and click it.</p></body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Student Quiz Bookmarklet</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:60px auto;padding:0 16px;line-height:1.5}
+  #install{display:inline-block;padding:12px 20px;background:#111;color:#fff;border-radius:10px;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<h2>Install the Student Quiz</h2>
+<ol>
+  <li>Show the bookmarks bar: <b>Cmd + Shift + B</b> (Mac) or <b>Ctrl + Shift + B</b> (Windows)</li>
+  <li>Drag this button onto the bookmarks bar (delete any old version first):</li>
+</ol>
+<p><a id="install" href="#">🎓 Student Quiz</a></p>
+<p>Then open UMS and click it.</p>
+
+<!-- The quiz code, kept readable. The button above is built from it when this page opens. -->
+<script id="quiz-source" type="text/plain">
+(() => {
+    'use strict';
+
+    // ==== Guard: if overlay already exists, just focus it and exit ============
+    const QUIZ_OVERLAY_ID = 'student-quiz-overlay';
+    const EXISTING = document.getElementById(QUIZ_OVERLAY_ID);
+    if (EXISTING) {
+        const input = EXISTING.querySelector('#student-name-guess');
+        if (input) { input.focus(); input.select(); }
+        return;
+    }
+
+    // ==== Settings ============================================================
+    const NAME_COLUMNS = 5;          // columns in the name panel
+    const AUTO_NEXT_DELAY_MS = 600;  // pause after a correct click before moving on
+
+    // ==== Utilities ===========================================================
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+    const normalize = (s) =>
+        (s ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const firstNameOf = (fullName) => (fullName ?? '').trim().split(/\s+/)[0] ?? '';
+
+    // ==== Algorithm State =====================================================
+    // Weights track how "hard" a student is. Higher = shows up more often.
+    let studentWeights = {};
+
+    // ==== Extract students ====================================================
+    function extractStudents(root) {
+        const idSpans = $$('[id^="DisplayResult_SearchResultCtl_SearchDataList_lblLoginName_"]', root);
+        const nameSpans = $$('[id^="DisplayResult_SearchResultCtl_SearchDataList_lblObjectName_"]', root);
+        return idSpans.map((span, i) => {
+            const name = nameSpans[i]?.textContent?.trim();
+            return {
+                id: span?.textContent?.trim(),
+                name,
+                first: firstNameOf(name),   // only the very first name is used in the UI
+            };
+        }).filter(s => s.id && s.name);
+    }
+
+    let allStudents = extractStudents(document);
+
+    // ==== Saved classes (remembered in this browser) ==========================
+    const SEARCH_SEL = '#FunctionMenu_searchcontrol_SearchText';
+    const SEARCH_BTN_SEL = '#FunctionMenu_searchcontrol_StartSearchOnSelect';
+    const SEARCH_PLACEHOLDER = 'Indtast søgekriterie';
+    const CLASSES_KEY = 'studentQuizClasses';
+    const LAST_CLASS_KEY = 'studentQuizLastClass';
+    let savedClasses = [];
+    try { savedClasses = JSON.parse(localStorage.getItem(CLASSES_KEY) || '[]'); } catch (e) { /* ignore */ }
+    const saveClasses = () => {
+        try { localStorage.setItem(CLASSES_KEY, JSON.stringify(savedClasses)); } catch (e) { /* ignore */ }
+    };
+    const rememberLastClass = (id) => {
+        try { localStorage.setItem(LAST_CLASS_KEY, id); } catch (e) { /* ignore */ }
+    };
+    let lastClass = null;
+    try { lastClass = localStorage.getItem(LAST_CLASS_KEY); } catch (e) { /* ignore */ }
+
+    // If the page already shows a class, remember its ID automatically
+    const pageClassId = (document.querySelector(SEARCH_SEL)?.value || '').trim();
+    // If the page shows search results that include the class itself, it is a result list
+    // (groups, courses, ...) and not the class's students: load the class properly instead.
+    const lowerPageId = pageClassId.toLowerCase();
+    const isPageId = (v) => (v || '').trim().toLowerCase() === lowerPageId;
+    let pageNeedsLoad = false;
+    if (pageClassId && pageClassId !== SEARCH_PLACEHOLDER && allStudents.some((s) => isPageId(s.id) || isPageId(s.name))) {
+        allStudents = [];
+        pageNeedsLoad = true;
+    }
+    let activeClass = null;
+    if (allStudents.length && pageClassId && pageClassId !== SEARCH_PLACEHOLDER) {
+        activeClass = pageClassId;
+        if (!savedClasses.includes(pageClassId)) { savedClasses.push(pageClassId); saveClasses(); }
+        rememberLastClass(pageClassId);
+    }
+
+    // Students removed from practice (remembered in this browser between sessions)
+    const REMOVED_KEY = 'studentQuizRemovedIds';
+    let removedIds = new Set();
+    try { removedIds = new Set(JSON.parse(localStorage.getItem(REMOVED_KEY) || '[]')); } catch (e) { /* ignore */ }
+    const saveRemoved = () => {
+        try { localStorage.setItem(REMOVED_KEY, JSON.stringify([...removedIds])); } catch (e) { /* ignore */ }
+    };
+
+    // Active set = everyone not removed with the × button
+    let students = allStudents.filter(s => !removedIds.has(s.id));
+
+    // Students answered correctly this round: they leave the list until "Restore Active Set"
+    const learnedIds = new Set();
+    const remainingStudents = () => students.filter(s => !learnedIds.has(s.id));
+
+    // Phase 1 Queue: A copy of all students to cycle through first
+    let unseenStudents = [...students];
+
+    // ==== Weighted Logic ======================================================
+    function getWeight(id) {
+        return studentWeights[id] !== undefined ? studentWeights[id] : 20;
+    }
+
+    function adjustWeight(id, isCorrect) {
+        let w = getWeight(id);
+        if (isCorrect) {
+            w = Math.max(1, w - 5);   // Correct: shows less often
+        } else {
+            w = w + 15;               // Wrong: shows MORE often
+        }
+        studentWeights[id] = w;
+    }
+
+    function pickWeightedStudent(availableStudents, currentId) {
+        let pool = availableStudents;
+        if (availableStudents.length > 1 && currentId) {
+            pool = availableStudents.filter(s => s.id !== currentId);
+        }
+        const totalWeight = pool.reduce((sum, s) => sum + getWeight(s.id), 0);
+        let randomPointer = Math.random() * totalWeight;
+        for (const student of pool) {
+            const w = getWeight(student.id);
+            if (randomPointer < w) return student;
+            randomPointer -= w;
+        }
+        return pool[0];
+    }
+
+    // ==== Hidden iframe (loader) ==============================================
+    let loaderIframe = document.getElementById('infoPage');
+    if (!loaderIframe) {
+        loaderIframe = document.createElement('iframe');
+        loaderIframe.id = 'infoPage';
+        document.body.appendChild(loaderIframe);
+    }
+    loaderIframe.setAttribute('aria-hidden', 'true');
+    loaderIframe.style.display = 'none';
+
+    // ==== Styles ==============================================================
+    document.getElementById('student-quiz-style')?.remove(); // replace styles from older versions
+    const styleEl = document.createElement('style');
+    styleEl.id = 'student-quiz-style';
+    styleEl.textContent = `
+      #student-quiz-overlay{position:fixed;inset:0;z-index:2147483647;display:flex;overflow:auto;padding:16px;box-sizing:border-box;background:rgba(10,10,10,.75);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+      #student-quiz-overlay *{box-sizing:border-box}
+      #student-quiz-layout{margin:auto;display:flex;flex-wrap:wrap;gap:20px;align-items:stretch;justify-content:center;max-width:100%}
+      #student-quiz-card,#student-names-panel{background:#fff;color:#111;padding:24px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+      #student-quiz-card{position:relative;width:min(460px,92vw);display:grid;gap:16px;justify-items:center;align-content:start}
+      #student-names-panel{width:min(680px,92vw);display:flex;flex-direction:column;gap:12px}
+      #student-names-title{font-size:1rem;font-weight:700}
+      #student-names-grid{display:grid;grid-auto-flow:column;grid-template-columns:repeat(${NAME_COLUMNS},minmax(0,1fr));gap:4px 8px}
+      .name-cell{position:relative;min-width:0}
+      .name-btn{width:100%;padding:7px 26px 7px 10px;border-radius:8px;border:1px solid #e3e3e3;background:#fafafa;color:#111;font-size:14px;text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .12s ease,border-color .12s ease}
+      .name-btn:hover{background:#eee;border-color:#ccc}
+      .name-btn.is-correct{background:#d9f5df;border-color:#2e9e4a;color:#14532d;font-weight:700}
+      .name-btn.is-wrong{background:#fde2e2;border-color:#d64545;color:#7f1d1d}
+      .name-del{position:absolute;top:50%;right:4px;transform:translateY(-50%);width:20px;height:20px;padding:0;border:none;border-radius:50%;background:transparent;color:#aaa;font-size:14px;line-height:20px;text-align:center;cursor:pointer}
+      .name-del:hover{background:#d64545;color:#fff}
+      #student-names-header{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+      #restore-names{background:none;border:none;padding:0;font-size:13px;color:#06c;text-decoration:underline;cursor:pointer}
+      #restore-names[hidden]{display:none}
+      #student-names-tools{display:flex;align-items:center;gap:14px}
+      #restore-active{padding:6px 12px;border-radius:8px;border:1px solid #ccc;background:#f4f4f4;color:#111;font-size:13px;font-weight:600;cursor:pointer}
+      #restore-active:hover{background:#e6e6e6}
+      #student-names-grid.locked .name-btn{cursor:default}
+      #student-names-grid.locked .name-btn:not(.is-correct):not(.is-wrong){opacity:.55}
+      #student-quiz-title{font-size:1.25rem;font-weight:700}
+      #studentPhoto{width:220px;height:220px;object-fit:cover;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.2);background:#f2f2f2}
+      #quiz-controls{display:grid;grid-template-columns:1fr auto;gap:8px;width:100%}
+      #student-name-guess{padding:12px 14px;border-radius:10px;border:1px solid #ddd;width:100%;font-size:16px}
+      #quiz-suggest{width:100%;min-height:26px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:#666}
+      .suggest-chip{padding:3px 9px;border-radius:999px;background:#f0f0f0;color:#333;cursor:pointer;border:1px solid transparent}
+      .suggest-chip:hover{background:#e2e2e2}
+      .suggest-chip.single{background:#d9f5df;border-color:#2e9e4a;color:#14532d;font-weight:700}
+      .suggest-more{color:#999}
+      #student-names-grid.filtering .name-btn:not(.matches){opacity:.25}
+      .quiz-btn{padding:12px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:600;background:#111;color:#fff;transition:transform .06s ease, box-shadow .2s ease}
+      .quiz-btn:active{transform:translateY(1px)}
+      .quiz-btn.secondary{background:#eee;color:#111}
+      .quiz-btn.primary{box-shadow:0 0 0 2px #111 inset, 0 0 0 0 rgba(0,0,0,0)}
+      .pulse{animation:pulse 1.2s infinite}
+      @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,0,0,.25)}70%{box-shadow:0 0 0 10px rgba(0,0,0,0)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+      .enter-icon{font-size:0.9em;margin-left:6px}
+      #quiz-actions{display:flex;gap:8px;width:100%}
+      #quiz-actions .quiz-btn{flex:1}
+      #quiz-result{min-height:28px;font-size:1rem;font-weight:600;text-align:center}
+      #quiz-footer{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:0.9rem;color:#555}
+      #close-quiz{position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:22px;line-height:1;color:#666;cursor:pointer}
+      #close-quiz:hover{color:#111}
+      #quiz-credits{font-size:12px;color:#666;margin-top:4px;width:100%;text-align:right}
+      #quiz-credits a{color:#06c;text-decoration:underline;cursor:pointer}
+      #class-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:10px;border-bottom:1px solid #eee}
+      .class-chip-wrap{display:inline-flex;align-items:center;border:1px solid #ccc;border-radius:999px;background:#f4f4f4;overflow:hidden}
+      .class-chip-wrap.active{background:#111;border-color:#111}
+      .class-chip{padding:6px 4px 6px 12px;border:none;background:transparent;color:#111;font-size:13px;font-weight:600;cursor:pointer;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .class-chip-wrap.active .class-chip{color:#fff}
+      .class-chip:disabled{cursor:wait}
+      .class-del{padding:0 10px 0 4px;border:none;background:transparent;color:#999;font-size:14px;cursor:pointer}
+      .class-del:hover{color:#d64545}
+      #class-add{padding:6px 12px;border-radius:999px;border:1px dashed #999;background:#fff;color:#333;font-size:13px;cursor:pointer}
+      #class-add:hover{background:#f4f4f4}
+    `;
+    document.head.appendChild(styleEl);
+
+    // ==== Overlay UI ==========================================================
+    const quizOverlayEl = document.createElement('div');
+    quizOverlayEl.id = QUIZ_OVERLAY_ID;
+    quizOverlayEl.innerHTML = `
+    <div id="student-quiz-layout">
+      <div id="student-quiz-card" role="dialog" aria-modal="true" aria-labelledby="student-quiz-title">
+        <button id="close-quiz" aria-label="Close">✕</button>
+        <div id="quiz-header" style="text-align:center;">
+          <div id="student-quiz-title">Benjamin’s Students Quiz</div>
+        </div>
+        <img id="studentPhoto" alt="Student photo" decoding="async" loading="eager" />
+        <div id="quiz-controls">
+          <input id="student-name-guess" name="guess"
+                 placeholder="First name?" autocomplete="off" />
+          <button id="guess-btn" class="quiz-btn">Guess <span class="enter-icon">↵</span></button>
+        </div>
+        <div id="quiz-suggest" aria-live="polite"></div>
+        <div id="quiz-actions">
+          <button id="next-btn" class="quiz-btn secondary" title="Show another student">Next</button>
+          <button id="reveal-btn" class="quiz-btn secondary" title="Reveal the answer">Reveal</button>
+        </div>
+        <div id="quiz-result" aria-live="polite"></div>
+        <div id="quiz-footer">
+          <div id="quiz-score">Score: <span id="score-correct">0</span>/<span id="score-total">0</span></div>
+          <div id="quiz-progress"></div>
+        </div>
+        <div id="quiz-credits">Lavet af <a href="https://www.linkedin.com/in/benjamindalshughes/" target="_blank" rel="noopener noreferrer">Benjamin Hughes</a></div>
+      </div>
+      <div id="student-names-panel" aria-label="Student names">
+        <div id="class-bar" aria-label="Classes"></div>
+        <div id="student-names-header">
+          <div id="student-names-title">Click a name</div>
+          <div id="student-names-tools">
+            <button id="restore-names" type="button" hidden></button>
+            <button id="restore-active" type="button" title="Bring back every name you have guessed correctly (not the ones removed with ×)">Restore Active Set</button>
+          </div>
+        </div>
+        <div id="student-names-grid"></div>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(quizOverlayEl);
+
+    // Close handlers
+    quizOverlayEl.addEventListener('click', (e) => {
+        if (e.target === quizOverlayEl) closeOverlay();
+    });
+    const escHandler = (e) => { if (e.key === 'Escape') closeOverlay(); };
+    document.addEventListener('keydown', escHandler);
+    let autoNextTimer = null;
+    function closeOverlay() {
+        clearTimeout(autoNextTimer);
+        document.removeEventListener('keydown', escHandler);
+        quizOverlayEl.remove();
+    }
+
+    // Refs
+    const imgEl = document.getElementById('studentPhoto');
+    const nameInput = document.getElementById('student-name-guess');
+    const guessBtn = document.getElementById('guess-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const revealBtn = document.getElementById('reveal-btn');
+    const resultEl = document.getElementById('quiz-result');
+    const scoreCorrectEl = document.getElementById('score-correct');
+    const scoreTotalEl = document.getElementById('score-total');
+    const progressEl = document.getElementById('quiz-progress');
+    const namesGridEl = document.getElementById('student-names-grid');
+    const suggestEl = document.getElementById('quiz-suggest');
+    document.getElementById('close-quiz').addEventListener('click', closeOverlay);
+
+    const restoreBtn = document.getElementById('restore-names');
+
+    // Name panel: 5 aligned columns, alphabetical going down each column.
+    // Re-rendered whenever a name is removed, so the list collapses neatly.
+    const nameButtons = new Map(); // normalized first name -> button
+    function renderNameGrid() {
+        // Unique first names (two "Emil"s share one button)
+        const seen = new Set();
+        const firstNames = [];
+        const visible = students.filter(s => !learnedIds.has(s.id) || s === currentStudent);
+        for (const s of visible) {
+            const key = normalize(s.first);
+            if (!seen.has(key)) { seen.add(key); firstNames.push(s.first); }
+        }
+        firstNames.sort((a, b) => a.localeCompare(b, 'da'));
+
+        namesGridEl.textContent = '';
+        nameButtons.clear();
+        const rowCount = Math.max(1, Math.ceil(firstNames.length / NAME_COLUMNS));
+        namesGridEl.style.gridTemplateRows = `repeat(${rowCount}, auto)`;
+
+        firstNames.forEach((first) => {
+            const cell = document.createElement('div');
+            cell.className = 'name-cell';
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'name-btn';
+            btn.textContent = first;
+            btn.title = first;
+            btn.addEventListener('click', () => handleNameClick(first, btn));
+
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'name-del';
+            del.textContent = '×';
+            del.title = `Remove ${first} from practice`;
+            del.setAttribute('aria-label', `Remove ${first} from practice`);
+            del.addEventListener('click', (e) => { e.stopPropagation(); removeFirstName(first); });
+
+            cell.append(btn, del);
+            namesGridEl.appendChild(cell);
+            nameButtons.set(normalize(first), btn);
+        });
+
+        restoreBtn.hidden = removedIds.size === 0;
+        restoreBtn.textContent = `Restore removed (${removedIds.size})`;
+    }
+
+    function updateProgress() {
+        progressEl.textContent = `${remainingStudents().length} of ${students.length} left`;
+    }
+
+    // Remove everyone with this first name from practice
+    function removeFirstName(first) {
+        const key = normalize(first);
+        const isGone = (s) => normalize(s.first) === key;
+        students.filter(isGone).forEach((s) => removedIds.add(s.id));
+        saveRemoved();
+        students = students.filter((s) => !isGone(s));
+        unseenStudents = unseenStudents.filter((s) => !isGone(s));
+        renderNameGrid();
+
+        if (currentStudent && isGone(currentStudent)) {
+            nextStudent();                 // the person on screen was removed
+        } else {
+            if (currentStudent && !awaitingGuess) highlightCorrectName();
+            updateProgress();
+        }
+    }
+
+    // Restore Active Set: start a fresh round with everyone not removed by ×
+    document.getElementById('restore-active').addEventListener('click', () => {
+        learnedIds.clear();
+        unseenStudents = students.filter((s) => s !== currentStudent); // everyone gets shown again
+        if (!currentStudent) { nextStudent(); return; }
+        renderNameGrid();
+        if (!awaitingGuess) highlightCorrectName();
+        updateProgress();
+    });
+
+    restoreBtn.addEventListener('click', () => {
+        const restored = allStudents.filter((s) => removedIds.has(s.id));
+        restored.forEach((s) => learnedIds.delete(s.id));
+        removedIds.clear();
+        saveRemoved();
+        students = [...allStudents];
+        unseenStudents.push(...restored);  // restored students count as not yet seen
+        renderNameGrid();
+        if (!currentStudent) nextStudent();
+        else {
+            if (!awaitingGuess) highlightCorrectName();
+            updateProgress();
+        }
+    });
+
+    // ==== State ===============================================================
+    let currentStudent = null;
+    let scoreCorrect = 0;
+    let scoreTotal = 0;
+    let awaitingGuess = true;
+    let revealActsAsNext = false; // once the name is known, the Reveal button works as Next
+    let revealedAt = 0;
+
+    function setPrimaryAction(which) {
+        const makePrimary = (btn) => {
+            btn.classList.remove('secondary');
+            btn.classList.add('primary', 'pulse');
+        };
+        const makeSecondary = (btn) => {
+            btn.classList.add('secondary');
+            btn.classList.remove('primary', 'pulse');
+        };
+        if (which === 'guess') {
+            makePrimary(guessBtn);
+            if (!guessBtn.querySelector('.enter-icon')) guessBtn.insertAdjacentHTML('beforeend', ' <span class="enter-icon">↵</span>');
+            if (nextBtn.querySelector('.enter-icon')) nextBtn.querySelector('.enter-icon').remove();
+            makeSecondary(nextBtn);
+            awaitingGuess = true;
+            namesGridEl.classList.remove('locked');
+            updateSuggestions();
+            revealActsAsNext = false;
+            revealBtn.textContent = 'Reveal';
+            revealBtn.title = 'Reveal the answer';
+        } else {
+            makePrimary(nextBtn);
+            if (!nextBtn.querySelector('.enter-icon')) nextBtn.insertAdjacentHTML('beforeend', ' <span class="enter-icon">↵</span>');
+            if (guessBtn.querySelector('.enter-icon')) guessBtn.querySelector('.enter-icon').remove();
+            makeSecondary(guessBtn);
+            awaitingGuess = false;
+            namesGridEl.classList.add('locked');
+            updateSuggestions();
+            // Name is now known (guess, click or reveal): Reveal button works as Next
+            revealActsAsNext = true;
+            revealedAt = Date.now();
+            revealBtn.textContent = 'Next';
+            revealBtn.title = 'Show another student';
+        }
+    }
+
+    function clearNameHighlights() {
+        nameButtons.forEach((btn) => btn.classList.remove('is-correct', 'is-wrong'));
+    }
+
+    // ==== Live suggestions while typing ======================================
+    const MAX_CHIPS = 6;
+    function visibleFirstNames() {
+        return [...nameButtons.values()].map((btn) => btn.textContent);
+    }
+    function matchingNames(typed) {
+        const t = normalize(typed);
+        if (!t) return [];
+        return visibleFirstNames().filter((n) => normalize(n).startsWith(t));
+    }
+    function updateSuggestions() {
+        const typed = nameInput.value;
+        const matches = awaitingGuess ? matchingNames(typed) : [];
+        suggestEl.textContent = '';
+        namesGridEl.classList.toggle('filtering', awaitingGuess && normalize(typed).length > 0);
+        nameButtons.forEach((btn, key) => {
+            btn.classList.toggle('matches', matches.some((n) => normalize(n) === key));
+        });
+        if (!awaitingGuess || !normalize(typed)) return;
+        if (!matches.length) {
+            suggestEl.textContent = 'No name starts with that';
+            return;
+        }
+        matches.slice(0, MAX_CHIPS).forEach((n) => {
+            const chip = document.createElement('span');
+            chip.className = 'suggest-chip' + (matches.length === 1 ? ' single' : '');
+            chip.textContent = n;
+            chip.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the field
+            chip.addEventListener('click', () => { nameInput.value = n; checkAnswer(); });
+            suggestEl.appendChild(chip);
+        });
+        if (matches.length > MAX_CHIPS) {
+            const more = document.createElement('span');
+            more.className = 'suggest-more';
+            more.textContent = `+${matches.length - MAX_CHIPS} more`;
+            suggestEl.appendChild(more);
+        }
+    }
+    nameInput.addEventListener('input', updateSuggestions);
+
+    function highlightCorrectName() {
+        nameButtons.get(normalize(currentStudent.first))?.classList.add('is-correct');
+    }
+
+    function updateScore() {
+        scoreCorrectEl.textContent = String(scoreCorrect);
+        scoreTotalEl.textContent = String(scoreTotal);
+    }
+
+    // ==== Load student image ==================================================
+    function loadStudentImage(student) {
+        const url = `../include/InfoPage.aspx?login=${encodeURIComponent(student.id)}&type=S`;
+        return new Promise((resolve, reject) => {
+            const onLoad = () => {
+                try {
+                    const doc = loaderIframe.contentDocument || loaderIframe.contentWindow?.document;
+                    if (!doc) throw new Error('No iframe document');
+                    const img = doc.querySelector('img');
+                    if (!img) return reject(new Error('No <img> found in iframe'));
+                    resolve(img.src);
+                } catch (err) { reject(err); }
+                finally { loaderIframe.removeEventListener('load', onLoad); }
+            };
+            loaderIframe.addEventListener('load', onLoad, { once: true });
+            loaderIframe.src = url;
+        });
+    }
+
+    async function showStudent(student) {
+        currentStudent = student;
+        resultEl.textContent = '';
+        nameInput.value = '';
+        imgEl.src = '';
+        imgEl.alt = 'Loading...';
+        renderNameGrid(); // names already guessed correctly drop out here
+        updateProgress();
+
+        setPrimaryAction('guess');
+        try {
+            const imgSrc = await loadStudentImage(student);
+            if (currentStudent === student) imgEl.src = imgSrc; // ignore stale loads
+        } catch (e) {
+            if (currentStudent !== student) return;
+            resultEl.textContent = 'Could not load image. Try Next.';
+            setPrimaryAction('next');
+        }
+    }
+
+    // ==== Logic ===============================================================
+    // Typed answer: first name only, first 4 letters are enough
+    function checkAnswer() {
+        if (!currentStudent || !awaitingGuess) return;
+        const matches = matchingNames(nameInput.value);
+        if (matches.length === 1) nameInput.value = matches[0]; // complete the single match
+        const guessFirst = normalize(nameInput.value).split(/\s+/)[0];
+        const firstName = normalize(currentStudent.first);
+        scoreTotal += 1;
+
+        const isCorrect = firstName.length <= 4
+            ? guessFirst === firstName                          // short names (Bo, Ida, Emil): must match fully
+            : guessFirst.slice(0, 4) === firstName.slice(0, 4); // otherwise the first 4 letters are enough
+
+        if (isCorrect) {
+            scoreCorrect += 1;
+            resultEl.textContent = `Correct 🎉 — ${currentStudent.first}`;
+            adjustWeight(currentStudent.id, true);
+            learnedIds.add(currentStudent.id); // done for this round; leaves the list on Next
+        } else {
+            resultEl.textContent = `Wrong 😭 — It’s ${currentStudent.first}`;
+            adjustWeight(currentStudent.id, false);
+        }
+        highlightCorrectName();
+        updateScore();
+        nameInput.focus(); nameInput.select();
+        setPrimaryAction('next');
+    }
+
+    // Clicked answer in the name panel
+    function handleNameClick(clickedFirst, btn) {
+        if (!currentStudent || !awaitingGuess) return;
+        scoreTotal += 1;
+        const isCorrect = normalize(clickedFirst) === normalize(currentStudent.first);
+
+        if (isCorrect) {
+            // Correct: brief green flash, then move on automatically
+            scoreCorrect += 1;
+            adjustWeight(currentStudent.id, true);
+            learnedIds.add(currentStudent.id); // done for this round; leaves the list on Next
+            resultEl.textContent = `Correct 🎉 — ${currentStudent.first}`;
+            btn.classList.add('is-correct');
+            updateScore();
+            setPrimaryAction('next'); // locks the panel during the short pause
+            autoNextTimer = setTimeout(nextStudent, AUTO_NEXT_DELAY_MS);
+        } else {
+            // Wrong: mark the click, show + fill in the right name, wait for manual Next
+            adjustWeight(currentStudent.id, false);
+            resultEl.textContent = `Wrong 😭 — It’s ${currentStudent.first}`;
+            btn.classList.add('is-wrong');
+            highlightCorrectName();
+            nameInput.value = currentStudent.first;
+            updateScore();
+            setPrimaryAction('next');
+            nameInput.focus(); nameInput.select(); // Enter now means Next
+        }
+    }
+
+    function nextStudent() {
+        clearTimeout(autoNextTimer);
+        if (!students.length) {
+            currentStudent = null;
+            imgEl.removeAttribute('src');
+            imgEl.alt = '';
+            nameInput.value = '';
+            resultEl.textContent = 'No students left to practice.';
+            progressEl.textContent = '';
+            renderNameGrid();
+            return;
+        }
+
+        const remaining = remainingStudents();
+        if (!remaining.length) {
+            // Every name has been guessed correctly once
+            currentStudent = null;
+            imgEl.removeAttribute('src');
+            imgEl.alt = '';
+            nameInput.value = '';
+            resultEl.textContent = 'All names guessed 🎉 — press “Restore Active Set” to go again.';
+            renderNameGrid();
+            updateProgress();
+            return;
+        }
+
+        let candidate;
+        if (unseenStudents.length > 0) {
+            // Phase 1: go through everyone randomly first
+            const randomIndex = Math.floor(Math.random() * unseenStudents.length);
+            candidate = unseenStudents[randomIndex];
+            unseenStudents.splice(randomIndex, 1);
+        } else {
+            // Phase 2: weighted algorithm
+            candidate = pickWeightedStudent(remaining, currentStudent?.id);
+        }
+        showStudent(candidate);
+        nameInput.focus();
+    }
+
+    // ==== Events ==============================================================
+    guessBtn.addEventListener('click', checkAnswer);
+    nextBtn.addEventListener('click', nextStudent);
+    revealBtn.addEventListener('click', () => {
+        if (!currentStudent) return;
+        if (revealActsAsNext) {
+            // Ignore the 2nd click of an accidental double-click right after revealing
+            if (Date.now() - revealedAt > 350) nextStudent();
+            return;
+        }
+        if (!awaitingGuess) return;
+        resultEl.textContent = `It’s ${currentStudent.first}`;
+        nameInput.value = currentStudent.first;
+        adjustWeight(currentStudent.id, false); // Count as 'hard'
+        highlightCorrectName();
+        setPrimaryAction('next');
+        nameInput.focus(); nameInput.select();
+    });
+
+    // Enter in the text field: Guess while unanswered, otherwise Next.
+    // Buttons keep the browser's normal behaviour: Enter activates the focused button only.
+    nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (awaitingGuess) checkAnswer(); else nextStudent();
+        }
+    });
+
+    // ==== Class switching =====================================================
+    const classBarEl = document.getElementById('class-bar');
+    let classLoading = false;
+
+    function renderClassBar() {
+        classBarEl.textContent = '';
+        savedClasses.forEach((id) => {
+            const wrap = document.createElement('span');
+            wrap.className = 'class-chip-wrap' + (id === activeClass ? ' active' : '');
+
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'class-chip';
+            chip.textContent = id;
+            chip.title = `Load ${id}`;
+            chip.disabled = classLoading;
+            chip.addEventListener('click', () => switchClass(id));
+
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'class-del';
+            del.textContent = '×';
+            del.title = `Forget ${id}`;
+            del.addEventListener('click', () => {
+                savedClasses = savedClasses.filter((c) => c !== id);
+                saveClasses();
+                renderClassBar();
+            });
+
+            wrap.append(chip, del);
+            classBarEl.appendChild(wrap);
+        });
+
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.id = 'class-add';
+        add.textContent = '+ Add class';
+        add.title = 'Paste a class ID from UMS';
+        add.disabled = classLoading;
+        add.addEventListener('click', () => {
+            const id = (prompt('Paste the class ID') || '').trim();
+            if (!id) return;
+            if (!savedClasses.includes(id)) { savedClasses.push(id); saveClasses(); }
+            switchClass(id);
+        });
+        classBarEl.appendChild(add);
+    }
+
+    // In a search result list, find the clickable link of the hit whose ID/name equals the class ID
+    function findOpenTarget(doc, same) {
+        const span = $$('[id^="DisplayResult_SearchResultCtl_SearchDataList_lbl"]', doc)
+            .find((el) => same(el.textContent));
+        let el = span, target = null;
+        for (let i = 0; el && i < 8 && !target; i++, el = el.parentElement) {
+            if (el.matches?.('a[href], [onclick]')) target = el;
+            else target = el.querySelector?.('a[href]:not([href="#"]), [onclick]');
+        }
+        return target;
+    }
+
+    // Loads the UMS page in a hidden iframe, runs the search there, and reads the students
+    function loadClassFromUms(id) {
+        return new Promise((resolve, reject) => {
+            document.getElementById('classLoader')?.remove();
+            const frame = document.createElement('iframe');
+            frame.id = 'classLoader';
+            frame.setAttribute('aria-hidden', 'true');
+            frame.style.display = 'none';
+            let step = 0;
+            let opened = false;
+            const finish = (fn, value) => { clearTimeout(timer); frame.remove(); fn(value); };
+            const timer = setTimeout(() => finish(reject, new Error('Timed out loading class')), 30000);
+
+            frame.addEventListener('load', () => {
+                try {
+                    const doc = frame.contentDocument;
+                    if (!doc) throw new Error('No iframe document');
+                    if (step === 0) {
+                        const input = doc.querySelector(SEARCH_SEL);
+                        const btn = doc.querySelector(SEARCH_BTN_SEL);
+                        if (!input || !btn) throw new Error('Search box not found');
+                        step = 1;
+                        input.value = id;
+                        btn.click();
+                        return;
+                    }
+                    const same = (v) => (v || '').trim().toLowerCase() === id.toLowerCase();
+
+                    if (!opened) {
+                        // Search results: may contain groups, courses etc. Open ONLY the exact class.
+                        const target = findOpenTarget(doc, same);
+                        if (target) { opened = true; step += 1; target.click(); return; }
+                        if (extractStudents(doc).length || step >= 4) {
+                            throw new Error(`No exact match for "${id}" in UMS`);
+                        }
+                        step += 1; return; // results not shown yet, wait for the next page load
+                    }
+
+                    // Inside the class: its members
+                    const list = extractStudents(doc).filter((s) => !same(s.id) && !same(s.name));
+                    if (list.length) { finish(resolve, list); return; }
+                    if (step < 8) { step += 1; return; } // wait for one more page load
+                    finish(resolve, list);
+                } catch (err) { finish(reject, err); }
+            });
+            frame.src = location.href;
+            document.body.appendChild(frame);
+        });
+    }
+
+    async function switchClass(id) {
+        if (classLoading) return;
+        classLoading = true;
+        activeClass = id;
+        renderClassBar();
+        clearTimeout(autoNextTimer);
+        currentStudent = null;
+        imgEl.removeAttribute('src');
+        imgEl.alt = '';
+        nameInput.value = '';
+        resultEl.textContent = `Loading ${id}…`;
+        try {
+            const list = await loadClassFromUms(id);
+            if (!list.length) throw new Error('No students found');
+            rememberLastClass(id);
+            setStudents(list);
+        } catch (err) {
+            console.warn(err);
+            allStudents = []; students = []; unseenStudents = []; learnedIds.clear();
+            renderNameGrid();
+            progressEl.textContent = '';
+            resultEl.textContent = `Could not load ${id}. Use the exact, full class ID from UMS.`;
+        } finally {
+            classLoading = false;
+            renderClassBar();
+        }
+    }
+
+    function setStudents(list) {
+        allStudents = list;
+        students = allStudents.filter((s) => !removedIds.has(s.id));
+        learnedIds.clear();
+        unseenStudents = [...students];
+        studentWeights = {};
+        scoreCorrect = 0;
+        scoreTotal = 0;
+        updateScore();
+        renderNameGrid();
+        nextStudent();
+        nameInput.focus();
+    }
+
+    // ==== Start ===============================================================
+    renderClassBar();
+    renderNameGrid();
+    if (allStudents.length) {
+        nextStudent();
+    } else if (pageNeedsLoad) {
+        if (!savedClasses.includes(pageClassId)) { savedClasses.push(pageClassId); saveClasses(); }
+        switchClass(pageClassId);
+    } else if (savedClasses.length) {
+        // No class on the page: load the last one used
+        switchClass(savedClasses.includes(lastClass) ? lastClass : savedClasses[0]);
+    } else {
+        nextStudent();
+        resultEl.textContent = 'Click “+ Add class” and paste a class ID.';
+    }
+    nameInput.focus();
+})();
+</script>
+
+<script>
+  const code = document.getElementById("quiz-source").textContent;
+  document.getElementById("install").href = "javascript:" + encodeURIComponent(code);
+</script>
+</body>
+</html>
